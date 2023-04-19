@@ -6,7 +6,11 @@ import tweepy
 import asyncio
 from pygelbooru import Gelbooru
 import requests
-
+import configparser
+config = configparser.ConfigParser()
+config.read('config.ini')
+tags = config['gelbooru']['tags'].split(',')
+exclude_tags = config['gelbooru']['exclude_tags'].split(',')
 
 load_dotenv()
 gelbooru = Gelbooru(os.getenv("GELAPI"), os.getenv("UID"))
@@ -18,7 +22,7 @@ async def main():
     :return: URL of the post as a string.
     """
 
-    results = await gelbooru.random_post(tags=['yamada ryou', '1girl'], exclude_tags=['nude','gotou hitori','ijichi nijika ','kita ikuyo'])
+    results = await gelbooru.random_post(tags=tags, exclude_tags=exclude_tags)
     ryo = str(results)
     response = requests.get(ryo)
 
