@@ -27,6 +27,6 @@ The script will post a random image from Gelbooru to your Twitter account at reg
 
 ## License
 
-This project is licensed under the WTFPL (Do What The F*ck You Want To Public License). See the [LICENSE](LICENSE) file for details.
+TThis script is licensed under the [MIT License](LICENSE).
 
 
