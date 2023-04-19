@@ -1,6 +1,6 @@
 # @Ryohourly Twitter Bot
 
-This is a Python script that posts a random image of Yamada Ryou from [Gelbooru](https://gelbooru.com/) to Twitter at regular intervals.
+This is a Python script that posts a random image of Yamada Ryou from [Gelbooru](https://gelbooru.com/) to Twitter every hour.
 
 ## Prerequisites
 
