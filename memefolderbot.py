@@ -51,7 +51,7 @@ def chooseRandomImage(directory="."):
 
 def tweet():
     """
-    Tweet function that posts an image to Twitter with a caption and waits for an hour before posting again.
+    Tweet function that posts an image to Twitter and waits for an hour before posting again.
     :return: None
     """
     auth = tweepy.OAuth1UserHandler(
