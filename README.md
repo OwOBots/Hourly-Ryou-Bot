@@ -19,6 +19,10 @@ pip install -r requirements.txt
 ## Setup
 
 To use the script, you will need to set up a `.env` file containing your API keys and tokens for Gelbooru and Twitter. You can use the `.env.sample` file as a template for your own `.env` file.
+## Tags
+To change tags open config.ini and change `tags`
+
+To **exclude** tags open config.ini and change `exclude_tags`
 
 To run the script, simply run:
 python memefolderbot.py
