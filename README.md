@@ -35,6 +35,7 @@ This script is licensed under the [MIT License](LICENSE).
 
 
 ## Credits
-[Codeium](https://codeium.com/): An AI-powered coding toolkit that includes Autocomplete and Search features that helped me solve difficult issues with the Twitter API.
+[Codeium](https://codeium.com/): An AI-powered coding toolkit that includes Autocomplete and Search features that helped me overcome the challenges that were making me feel overwhelmed and suicidal while coding.
+[requests](https://github.com/psf/requests): A Python library for making HTTP requests. This library was used to download images from the internet.
 [Tweepy](https://www.tweepy.org/): A Python library for the Twitter API that made it easier to interact with Twitter's API.
 [pygelbooru](https://github.com/rainyDayDevs/pygelbooru): A Python wrapper for the Gelbooru API that made it easy to fetch random   images from Gelbooru.
