@@ -34,3 +34,5 @@ The script will post a random image from Gelbooru to your Twitter account at reg
 This script is licensed under the [MIT License](LICENSE).
 
 
+## Credits
+OpenAI for saving me from killing myself over twitter api bullshit
