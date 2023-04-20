@@ -12,6 +12,7 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 tags = config['gelbooru']['tags'].split(',')
 exclude_tags = config['gelbooru']['exclude_tags'].split(',')
+time2post = config['timer']['time2post']
 
 load_dotenv()
 gelbooru = Gelbooru(os.getenv("GELAPI"), os.getenv("UID"))
@@ -138,7 +139,8 @@ def tweet():
         print("Deleted compressed file:", compressed_path)
         print("Tweeted!")
         print("Now sleeping for 1 hour...")
-        time.sleep(3600)  # 3600 seconds = 1 hour
+        
+        time.sleep(int(time2post))  # 3600 seconds = 1 hour
 
 
 
