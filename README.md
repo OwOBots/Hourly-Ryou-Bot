@@ -14,7 +14,7 @@ Before running the script, you will need to install the following packages:
 - `requests`
 
 You can install these packages by running:
-pip install -r requirements.txt
+`pip install -r requirements.txt`
 
 ## Setup
 
