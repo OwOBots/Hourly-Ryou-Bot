@@ -7,6 +7,7 @@ import asyncio
 from pygelbooru import Gelbooru
 import requests
 import configparser
+from PIL import Image
 config = configparser.ConfigParser()
 config.read('config.ini')
 tags = config['gelbooru']['tags'].split(',')
@@ -53,6 +54,37 @@ def chooseRandomImage(directory="."):
     chosenImage = allImages[choice]
     return chosenImage
 
+def compress_image(path, quality=80):
+    """
+    Compresses an image file to reduce its file size.
+
+    Args:
+        path (str): The path to the image file to be compressed.
+        quality (int, optional): The compression quality to use (0-100). Defaults to 80.
+
+    Returns:
+        str: The path to the compressed image file.
+    """
+    with Image.open(path) as img:
+        img.save(path, optimize=True, quality=quality)
+    return path
+
+def tweet():
+    """
+    Tweet function that posts an image to Twitter and waits for an hour before posting again,
+    unless the compressed image file size is greater than 5MB, in which case it skips the wait.
+    :return: None
+    """
+    auth = tweepy.OAuth1UserHandler(
+       os.getenv("TWITTER_APIKEY"),
+       os.getenv("TWITTER_APISECRET"),
+       os.getenv("ACCESS_TOKEN"),
+       os.getenv("ACCESS_TOKENSECRET"),
+       os.getenv("BEAR")
+    )
+
+    api = tweepy.API(auth)
+
 def tweet():
     """
     Tweet function that posts an image to Twitter and waits for an hour before posting again.
@@ -70,9 +102,12 @@ def tweet():
 
     while True:
         path = asyncio.run(main())  # Get a random image from Gelbooru
-        media = api.media_upload(path,chunked=True)
+        compressed_path = compress_image(path)  # Compress the image
+        print("Compressed file path:", compressed_path)
+        media = api.media_upload(compressed_path,chunked=True)
         post_result = api.update_status(status=None, media_ids=[media.media_id_string])
-        os.remove(path)
+        os.remove(compressed_path)  # Delete the compressed image file
+        print("Deleted compressed file:", compressed_path)
         print("Tweeted! Now sleeping for 1 hour...")
         time.sleep(3600) # 3600 seconds = 1 hour
 
