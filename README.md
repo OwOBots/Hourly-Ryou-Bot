@@ -35,4 +35,6 @@ This script is licensed under the [MIT License](LICENSE).
 
 
 ## Credits
-OpenAI for saving me from killing myself over twitter api bullshit
+[Codeium](https://codeium.com/): An AI-powered coding toolkit that includes Autocomplete and Search features that helped me solve difficult issues with the Twitter API.
+[Tweepy](https://www.tweepy.org/): A Python library for the Twitter API that made it easier to interact with Twitter's API.
+[pygelbooru](https://github.com/rainyDayDevs/pygelbooru): A Python wrapper for the Gelbooru API that made it easy to fetch random   images from Gelbooru.
