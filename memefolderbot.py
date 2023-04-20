@@ -13,6 +13,7 @@ config.read('config.ini')
 tags = config['gelbooru']['tags'].split(',')
 exclude_tags = config['gelbooru']['exclude_tags'].split(',')
 time2post = config['timer']['time2post']
+status = config['status']['tweet']
 
 load_dotenv()
 gelbooru = Gelbooru(os.getenv("GELAPI"), os.getenv("UID"))
@@ -79,7 +80,11 @@ def compress_image(path, max_size=5):
         quality -= 10
         compressed_path = f"{os.path.splitext(path)[0]}_compressed.jpg"
         with Image.open(path) as img:
+            # Convert the image mode to RGB before saving it as a JPEG
+            if img.format != 'PNG':
+                img = img.convert('RGB')
             img.save(compressed_path, optimize=True, quality=quality)
+
 
         # If the quality value gets too low or the file size cannot be reduced below the maximum, break the loop
         if quality < 10 or os.path.getsize(compressed_path) >= os.path.getsize(path):
@@ -87,22 +92,6 @@ def compress_image(path, max_size=5):
             break
 
     return compressed_path
-
-def tweet():
-    """
-    Tweet function that posts an image to Twitter and waits for an hour before posting again,
-    unless the compressed image file size is greater than 5MB, in which case it skips the wait.
-    :return: None
-    """
-    auth = tweepy.OAuth1UserHandler(
-       os.getenv("TWITTER_APIKEY"),
-       os.getenv("TWITTER_APISECRET"),
-       os.getenv("ACCESS_TOKEN"),
-       os.getenv("ACCESS_TOKENSECRET"),
-       os.getenv("BEAR")
-    )
-
-    api = tweepy.API(auth)
 
 def tweet():
     """
@@ -134,7 +123,8 @@ def tweet():
             continue
 
         media = api.media_upload(compressed_path, chunked=True)
-        post_result = api.update_status(status=None, media_ids=[media.media_id_string])
+        status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
+        post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
         os.remove(compressed_path)  # Delete the compressed image file
         print("Deleted compressed file:", compressed_path)
         print("Tweeted!")
