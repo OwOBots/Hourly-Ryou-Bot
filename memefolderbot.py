@@ -4,13 +4,16 @@ import time
 from dotenv import load_dotenv
 import tweepy
 import asyncio
+import aiohttp
+import aiofiles
 from pygelbooru import Gelbooru
-import requests
+#import requests
 import configparser
 from PIL import Image
-from tqdm import tqdm
-# config.ini should be more intuitive than editing this file directly.
-# global variables my beloved
+#import hydrus_api
+#import hydrus_api.utils
+# config.ini should be more intuitive than editing this file directly. however, this is a bit of a pain to read so moving the globals to the 
+#functions is on my todo list for now 
 config = configparser.ConfigParser()
 config.read('config.ini')
 tags = config['gelbooru']['tags'].split(',')
@@ -18,36 +21,92 @@ exclude_tags = config['gelbooru']['exclude_tags'].split(',')
 time2post = config['timer']['time2post']
 status = config['status']['tweet']
 directory = config['directory']['path']
+#hydrus_enabled = config['hydrus-api']['enabled']
+#hydrus_url = config['hydrus-api']['url']
+#hydrustags = config['hydrus-api']['tags'].split(',')
+
+#REQUIRED_PERMISSIONS = (
+#    hydrus_api.Permission.IMPORT_URLS,
+#    hydrus_api.Permission.IMPORT_FILES,
+#    hydrus_api.Permission.ADD_TAGS,
+#    hydrus_api.Permission.SEARCH_FILES,
+#    hydrus_api.Permission.MANAGE_PAGES,
+#)
+
+
 
 # load the .env file so we can use the api keys
 load_dotenv()
 
-gelbooru = Gelbooru(os.getenv("GELAPI"), os.getenv("UID"))
+# the reason for dotenv is because leaving it in the config.ini file is a bad idea for security reasons and leagacy reasons like this
+gelbooru = Gelbooru(os.getenv("GELAPI"), os.getenv("UID")) 
+
 
 # should be in config.ini but twitter doesn't like outher extensions other than this so suck it
 imgExtension = ["png", "jpeg", "jpg", "gif"]
 
 # let's grab the image
 async def main():
+    
+    # hydrus is a bitch so right now we are just going to get a random post from gelbooru
     """
-    Get a random post from Gelbooru with the given tags excluding nudity.
+    Get a random post from Gelbooru or hydrus with the given tags excluding nudity.
 
     :return: URL of the post as a string.
     """
-   # pros and cons: pros: it works, cons: downloading the images may take a while depending on the users internet connection speed
-   # and the size of the images being downloaded from the server. Trying to multi thread downloading using artia2c may work but it 
-   # requires the user to download a third party app to download the images. 
-   # Lets not force the user to download a third party app for a silly twitter bot.
-    results = await gelbooru.random_post(tags=tags, exclude_tags=exclude_tags)
-    ryo = str(results)
-    response = requests.get(ryo)
+    """ if hydrus_enabled:
+        api_key = hydrus_api.utils.cli_request_api_key("ryobot", REQUIRED_PERMISSIONS)
+        client = hydrus_api.Client(api_key)
 
-    filename = os.path.basename(ryo)
-    path = os.path.join(directory, filename)
-    with open(path, 'wb') as f:
-        f.write(response.content)
-    return path
+        # Define the tags and exclude_tags
+        hydrus_tags = config['hydrus-api']['tags'].split(',')
 
+        # Define the search options
+        search_options = {
+            "system_inbox": True,
+            "system_archive": False,
+            "system_unread": False,
+            "system_not_new": False,
+            "system_deleted": False,
+            "system_pending": False,
+            "system_has_note": False,
+            "system_rating": None,
+            "system_source": None,
+            "limit": 300,
+            "sort": "random",
+            "tags_checkboxes": False,
+            "simple": False,
+            "no_page": True
+        }
+
+        # Search for files with the specified tags
+        files = client.search_files(hydrus_tags)
+        if not files:
+            # If there are no files, return None
+            return None
+
+        # Save the file to disk
+        filename = f"{files}.{files.headers['Content-Type'].split('/')[1]}"
+        path = os.path.join(directory, filename)
+        with open(path, 'wb') as f:
+            for chunk in files.iter_content(chunk_size=1024):
+                f.write(chunk)
+
+        return path 
+          else:
+"""
+
+  
+    async with aiohttp.ClientSession() as session:
+        results = await gelbooru.random_post(tags=tags, exclude_tags=exclude_tags)
+        ryo = str(results)
+        async with session.get(ryo) as response:
+            filename = os.path.basename(ryo)
+            path = os.path.join(directory, filename)
+            async with aiofiles.open(path, 'wb') as f:
+                await f.write(await response.read())
+
+        return path
 
 def chooseRandomImage():
     
@@ -134,10 +193,7 @@ def tweet():
     """
     
     # twitter api keys will be loaded from the .env file
-    #TODO: how the fuck do i make this more user friendly? 
-    # like oob auth or something like old tootbotx 
-    # but i dont know how to do that right now so 
-    #yelling at the user to use the .env file instead works
+    
     auth = tweepy.OAuth1UserHandler(
        os.getenv("TWITTER_APIKEY"),
        os.getenv("TWITTER_APISECRET"),
