@@ -176,8 +176,7 @@ def tweet():
             print("Tweeted!")
             #TODO: how to fucking sync the bot so if i restart the bot it doesn't post again until the hour has passed
             print("Now sleeping for 1 hour...")
-            for _ in tqdm(range(int(time2post))):
-                time.sleep(int(time2post))  # int the time2post variable because it's a string and needs to be converted to an int because config.ini only accepts strings
+            time.sleep(int(time2post))  # int the time2post variable because it's a string and needs to be converted to an int because config.ini only accepts strings
         # Keep going if an error occurs
         except Exception as e:
             print("Error occurred:", e)
