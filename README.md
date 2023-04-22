@@ -19,22 +19,28 @@ You can install these packages by running:
 ## Setup
 
 To use the script, you will need to set up a `.env` file containing your API keys and tokens for Gelbooru and Twitter. You can use the `.env.sample` file as a template for your own `.env` file.
-## Tags
+
+## Configuration File
+
+Docs are in the  `config.ini`
+
 To change tags open config.ini and change `tags`
 
 To **exclude** tags open config.ini and change `exclude_tags`
 
-To run the script, simply run:
-python memefolderbot.py
+## Running
 
-The script will post a random image from Gelbooru to your Twitter account at regular intervals. You can adjust the interval by changing the value of `time.sleep()` in the `tweet()` function.
+To run the script, simply run:
+`python memefolderbot.py`
+
+The script will post a random image from Gelbooru to your Twitter account at regular intervals. You can adjust the interval by changing the value of `time2post` in `config.ini`
 
 ## License
 
 This script is licensed under the [MIT License](LICENSE).
 
-
 ## Credits
+
 [Codeium](https://codeium.com/): An AI-powered coding toolkit that includes Autocomplete and Search features that helped me overcome the challenges that were making me feel overwhelmed and suicidal while coding.
 
 [requests](https://github.com/psf/requests): A Python library for making HTTP requests. This library was used to download images from the internet.

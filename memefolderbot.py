@@ -16,11 +16,14 @@ from PIL import Image
 #functions is on my todo list for now 
 config = configparser.ConfigParser()
 config.read('config.ini')
-tags = config['gelbooru']['tags'].split(',')
-exclude_tags = config['gelbooru']['exclude_tags'].split(',')
+tags = config['booru']['tags'].split(',')
+exclude_tags = config['booru']['exclude_tags'].split(',')
 time2post = config['timer']['time2post']
 status = config['status']['tweet']
 directory = config['directory']['path']
+booru_url = config['booru']['url']
+
+# enable if you want to fix the hydrus intgration
 #hydrus_enabled = config['hydrus-api']['enabled']
 #hydrus_url = config['hydrus-api']['url']
 #hydrustags = config['hydrus-api']['tags'].split(',')
@@ -39,13 +42,14 @@ directory = config['directory']['path']
 load_dotenv()
 
 # the reason for dotenv is because leaving it in the config.ini file is a bad idea for security reasons and leagacy reasons like this
-gelbooru = Gelbooru(os.getenv("GELAPI"), os.getenv("UID")) 
+
+
 
 
 # should be in config.ini but twitter doesn't like outher extensions other than this so suck it
 imgExtension = ["png", "jpeg", "jpg", "gif"]
 
-# let's grab the image
+
 async def main():
     
     # hydrus is a bitch so right now we are just going to get a random post from gelbooru
@@ -96,17 +100,38 @@ async def main():
           else:
 """
 
-  
-    async with aiohttp.ClientSession() as session:
-        results = await gelbooru.random_post(tags=tags, exclude_tags=exclude_tags)
-        ryo = str(results)
-        async with session.get(ryo) as response:
-            filename = os.path.basename(ryo)
-            path = os.path.join(directory, filename)
-            async with aiofiles.open(path, 'wb') as f:
-                await f.write(await response.read())
 
-        return path
+  # let's grab the image
+    if booru_url is None or booru_url == "":
+            #gelbooru is the default api so lets assume the user uses it. if not
+            #then go use the generic api
+                gelbooru = Gelbooru(os.getenv("GELAPI"), os.getenv("UID")) 
+                async with aiohttp.ClientSession() as session:
+                    results = await gelbooru.random_post(tags=tags, exclude_tags=exclude_tags)
+                    ryo = str(results)
+                    async with session.get(ryo) as response:
+                        filename = os.path.basename(ryo)
+                        path = os.path.join(directory, filename)
+                        async with aiofiles.open(path, 'wb') as f:
+                            await f.write(await response.read())
+                            
+                        return path
+                    
+    else:
+            #genric booru api key because theres more than one booru out there
+            #if the user has a custom api key then use that
+            #most boorus don't use api keys so leaving it blank is fine
+            genbooru = Gelbooru(os.getenv("BOORUAPI"), os.getenv("BOORUUID"), api=booru_url)
+            async with aiohttp.ClientSession() as session:
+                results = await genbooru.random_post(tags=tags, exclude_tags=exclude_tags)
+                ryo = str(results)
+                async with session.get(ryo) as response:
+                    filename = os.path.basename(ryo)
+                    path = os.path.join(directory, filename)
+                    async with aiofiles.open(path, 'wb') as f:
+                        await f.write(await response.read())
+
+            return path
 
 def chooseRandomImage():
     
@@ -193,7 +218,7 @@ def tweet():
     """
     
     # twitter api keys will be loaded from the .env file
-    
+    debug = config['debug']['enabled']
     auth = tweepy.OAuth1UserHandler(
        os.getenv("TWITTER_APIKEY"),
        os.getenv("TWITTER_APISECRET"),
@@ -203,42 +228,87 @@ def tweet():
     )
     
     api = tweepy.API(auth)
-    while True:
+    
+    # Debug mode doesn't clear the console so we can debug...
+    
+    if config.getboolean('debug', 'enabled'):
+        print("DEBUG MODE ENABLED CONSOLE WILL NOT BE CLEARED")
+        while True:
         
-        try:
-            # path lets us get a random image without restarting the bot
-            path = asyncio.run(main())  # Get a random image from Gelbooru
-            compressed_path = compress_image(path)  # Compress the image
-            print("Compressed file path:", compressed_path)
+            try:
+                # path lets us get a random image without restarting the bot
+                path = asyncio.run(main())  # Get a random image from Gelbooru
+                compressed_path = compress_image(path)  # Compress the image
+                print("Compressed file path:", compressed_path)
 
-            # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
-            if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
-            #DONT UNCOMMENT THIS IT WAS JUST FOR TESTING
-            #if os.path.getsize("invalid_path") > 5 * 1024 * 1024:
-                print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
+                if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
+                #DONT UNCOMMENT THIS IT WAS JUST FOR TESTING
+                #if os.path.getsize("invalid_path") > 5 * 1024 * 1024:
+                    print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                    os.remove(compressed_path)  # Delete the compressed image file
+                    print("Deleted compressed file:", compressed_path)
+                    continue
+                # if the image is gif, set the media category
+                media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
+                
+                
+                media = api.media_upload(compressed_path, chunked=True ,media_category=media_category)
+                status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
+                post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
+                #we delete the compressed image because it's no longer needed and storage is expensive
                 os.remove(compressed_path)  # Delete the compressed image file
                 print("Deleted compressed file:", compressed_path)
+                print("Tweeted!")
+                #TODO: how to fucking sync the bot so if i restart the bot it doesn't post again until the hour has passed
+                print("Now sleeping for 1 hour...")
+                time.sleep(int(time2post))  # int the time2post variable because it's a string and needs to be converted to an int because config.ini only accepts strings
+            # Keep going if an error occurs
+            except Exception as e:
+                print("Error occurred:", e)
+                print("Retrying in 30 seconds...")
+                time.sleep(30)
                 continue
-            # if the image is gif, set the media category
-            media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
+    else:
+    
+        while True:
             
-            
-            media = api.media_upload(compressed_path, chunked=True ,media_category=media_category)
-            status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
-            post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
-            #we delete the compressed image because it's no longer needed and storage is expensive
-            os.remove(compressed_path)  # Delete the compressed image file
-            print("Deleted compressed file:", compressed_path)
-            print("Tweeted!")
-            #TODO: how to fucking sync the bot so if i restart the bot it doesn't post again until the hour has passed
-            print("Now sleeping for 1 hour...")
-            time.sleep(int(time2post))  # int the time2post variable because it's a string and needs to be converted to an int because config.ini only accepts strings
-        # Keep going if an error occurs
-        except Exception as e:
-            print("Error occurred:", e)
-            print("Retrying in 30 seconds...")
-            time.sleep(30)
-            continue
+            try:
+                # clear the console so we can read the output
+                os.system('cls' if os.name == 'nt' else 'clear')
+                # path lets us get a random image without restarting the bot
+                path = asyncio.run(main())  # Get a random image from Gelbooru
+                compressed_path = compress_image(path)  # Compress the image
+                print("Compressed file path:", compressed_path)
+
+                # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
+                if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
+                #DONT UNCOMMENT THIS IT WAS JUST FOR TESTING
+                #if os.path.getsize("invalid_path") > 5 * 1024 * 1024:
+                    print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                    os.remove(compressed_path)  # Delete the compressed image file
+                    print("Deleted compressed file:", compressed_path)
+                    continue
+                # if the image is gif, set the media category
+                media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
+                
+                
+                media = api.media_upload(compressed_path, chunked=True ,media_category=media_category)
+                status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
+                post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
+                #we delete the compressed image because it's no longer needed and storage is expensive
+                os.remove(compressed_path)  # Delete the compressed image file
+                print("Deleted compressed file:", compressed_path)
+                print("Tweeted!")
+                #TODO: how to fucking sync the bot so if i restart the bot it doesn't post again until the hour has passed
+                print("Now sleeping for 1 hour...")
+                time.sleep(int(time2post))  # int the time2post variable because it's a string and needs to be converted to an int because config.ini only accepts strings
+            # Keep going if an error occurs
+            except Exception as e:
+                print("Error occurred:", e)
+                print("Retrying in 30 seconds...")
+                time.sleep(30)
+                continue
 
 
 
