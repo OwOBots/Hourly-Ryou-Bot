@@ -7,47 +7,40 @@ import asyncio
 import aiohttp
 import aiofiles
 from pygelbooru import Gelbooru
-#import requests
+import requests
 import configparser
 from PIL import Image
-#import hydrus_api
-#import hydrus_api.utils
+import hydrus_api
+import hydrus_api.utils
 # config.ini should be more intuitive than editing this file directly. however, this is a bit of a pain to read so moving the globals to the 
 #functions is on my todo list for now 
 config = configparser.ConfigParser()
 config.read('config.ini')
-tags = config['booru']['tags'].split(',')
-exclude_tags = config['booru']['exclude_tags'].split(',')
-time2post = config['timer']['time2post']
-status = config['status']['tweet']
 directory = config['directory']['path']
-booru_url = config['booru']['url']
+
 
 # enable if you want to fix the hydrus intgration
-#hydrus_enabled = config['hydrus-api']['enabled']
-#hydrus_url = config['hydrus-api']['url']
-#hydrustags = config['hydrus-api']['tags'].split(',')
+hydrus_enabled = config['hydrus-api']['enabled']
+hydrus_url = config['hydrus-api']['url']
 
-#REQUIRED_PERMISSIONS = (
-#    hydrus_api.Permission.IMPORT_URLS,
-#    hydrus_api.Permission.IMPORT_FILES,
-#    hydrus_api.Permission.ADD_TAGS,
-#    hydrus_api.Permission.SEARCH_FILES,
-#    hydrus_api.Permission.MANAGE_PAGES,
-#)
+
+REQUIRED_PERMISSIONS = (
+    hydrus_api.Permission.IMPORT_URLS,
+    hydrus_api.Permission.IMPORT_FILES,
+    hydrus_api.Permission.ADD_TAGS,
+    hydrus_api.Permission.SEARCH_FILES,
+    hydrus_api.Permission.MANAGE_PAGES,
+)
 
 
 
 # load the .env file so we can use the api keys
 load_dotenv()
 
-# the reason for dotenv is because leaving it in the config.ini file is a bad idea for security reasons and leagacy reasons like this
 
 
 
 
-# should be in config.ini but twitter doesn't like outher extensions other than this so suck it
-imgExtension = ["png", "jpeg", "jpg", "gif"]
 
 
 async def main():
@@ -58,12 +51,13 @@ async def main():
 
     :return: URL of the post as a string.
     """
-    """ if hydrus_enabled:
+    #TODO save api key so users dont have to enter it every time they restart the bot
+    if hydrus_enabled:
         api_key = hydrus_api.utils.cli_request_api_key("ryobot", REQUIRED_PERMISSIONS)
         client = hydrus_api.Client(api_key)
 
         # Define the tags and exclude_tags
-        hydrus_tags = config['hydrus-api']['tags'].split(',')
+        hydrustags = config['booru']['tags'].split(',')
 
         # Define the search options
         search_options = {
@@ -84,22 +78,29 @@ async def main():
         }
 
         # Search for files with the specified tags
-        files = client.search_files(hydrus_tags)
+        
+        files = client.search_files(tags=hydrustags, return_file_ids=True)
         if not files:
-            # If there are no files, return None
+        # No files found with the specified tags
             return None
+        
+        file_id = files['file_ids'][0]
+        img = client.get_file(file_id=file_id)
 
         # Save the file to disk
-        filename = f"{files}.{files.headers['Content-Type'].split('/')[1]}"
+        filename = f"{img}.{img.headers['Content-Type'].split('/')[1]}"
         path = os.path.join(directory, filename)
         with open(path, 'wb') as f:
-            for chunk in files.iter_content(chunk_size=1024):
+            for chunk in img.iter_content(chunk_size=1024):
                 f.write(chunk)
 
         return path 
-          else:
-"""
+    else:
 
+    # config.ini exists use that instead of hardcoding tags+urls
+        booru_url = config['booru']['url']
+        tags = config['booru']['tags'].split(',')
+        exclude_tags = config['booru']['exclude_tags'].split(',')
 
   # let's grab the image
     if booru_url is None or booru_url == "":
@@ -133,17 +134,13 @@ async def main():
 
             return path
 
-def chooseRandomImage():
+
+# we dont use this no more but it can be useful if you want to get a random image locally
+""" 
+    def chooseRandomImage():
     
-    """
-    Randomly choose an image file from the specified directory.
-
-    Args:
-        directory (str): The directory to search for image files. Defaults to current directory.
-
-    Returns:
-        str: The filename of the randomly chosen image.
-    """
+    # should be in config.ini but twitter doesn't like outher extensions other than this so suck it
+    imgExtension = ["png", "jpeg", "jpg", "gif"]
 
     allImages = []
     for img in os.listdir(directory):
@@ -152,7 +149,8 @@ def chooseRandomImage():
             allImages.append(img)
     choice = random.randint(0, len(allImages) - 1)
     chosenImage = allImages[choice]
-    return chosenImage
+    return chosenImage 
+"""
 
 
 def compress_image(path, max_size=5):
@@ -226,7 +224,8 @@ def tweet():
        os.getenv("ACCESS_TOKENSECRET"),
        os.getenv("BEAR")
     )
-    
+    status = config['status']['tweet']
+    time2post = config['timer']['time2post']
     api = tweepy.API(auth)
     
     # Debug mode doesn't clear the console so we can debug...
