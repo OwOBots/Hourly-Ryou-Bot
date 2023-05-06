@@ -52,30 +52,13 @@ async def main():
     :return: URL of the post as a string.
     """
     #TODO save api key so users dont have to enter it every time they restart the bot
-    if hydrus_enabled:
+    hydrus_enabled = True if config['hydrus-api']['enabled'].lower() == 'true' else False
+    if hydrus_enabled == True:
         api_key = hydrus_api.utils.cli_request_api_key("ryobot", REQUIRED_PERMISSIONS)
         client = hydrus_api.Client(api_key)
 
         # Define the tags and exclude_tags
         hydrustags = config['booru']['tags'].split(',')
-
-        # Define the search options
-        search_options = {
-            "system_inbox": True,
-            "system_archive": False,
-            "system_unread": False,
-            "system_not_new": False,
-            "system_deleted": False,
-            "system_pending": False,
-            "system_has_note": False,
-            "system_rating": None,
-            "system_source": None,
-            "limit": 300,
-            "sort": "random",
-            "tags_checkboxes": False,
-            "simple": False,
-            "no_page": True
-        }
 
         # Search for files with the specified tags
         
@@ -84,7 +67,7 @@ async def main():
         # No files found with the specified tags
             return None
         
-        file_id = files['file_ids'][0]
+        file_id = random.choice(files['file_ids'])
         img = client.get_file(file_id=file_id)
 
         # Save the file to disk
