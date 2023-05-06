@@ -4,16 +4,8 @@ This is a Python script that posts a random image of Yamada Ryou from [Gelbooru]
 
 ## Prerequisites
 
-Before running the script, you will need to install the following packages:
+Before running the script, you will need to install some packages, please use pip i beg you:
 
-- `os`
-- `dotenv`
-- `tweepy`
-- `asyncio`
-- `pygelbooru`
-- `requests`
-
-You can install these packages by running:
 `pip install -r requirements.txt`
 
 ## Setup
@@ -33,7 +25,7 @@ To **exclude** tags open config.ini and change `exclude_tags`
 To run the script, simply run:
 `python memefolderbot.py`
 
-The script will post a random image from Gelbooru to your Twitter account at regular intervals. You can adjust the interval by changing the value of `time2post` in `config.ini`
+By default, the script posts a random image from Gelbooru to your Twitter account at regular intervals. You can adjust the interval by changing the value of `time2post` in `config.ini`
 
 ## License
 
