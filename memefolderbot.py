@@ -19,7 +19,6 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 directory = config['directory']['path']
 
-
 REQUIRED_PERMISSIONS = (
     hydrus_api.Permission.IMPORT_URLS,
     hydrus_api.Permission.IMPORT_FILES,
@@ -39,12 +38,30 @@ async def main():
 
     :return: URL of the post as a string.
     """
-    # TODO save api key so users dont have to enter it every time they restart the bot
 
     hydrus_enabled = True if config['hydrus-api']['enabled'].lower() == 'true' else False
     if hydrus_enabled:
-        api_key = hydrus_api.utils.cli_request_api_key("ryobot", REQUIRED_PERMISSIONS)
-        client = hydrus_api.Client(api_key)
+        # I would like to save the api key to the .env file, so we don't have to make a new file for one third-party
+        # api but im afraid of overwriting .env file with just the hydrus api key and removing the twitter keys,
+        # so I'm going to save the api key to a file and load it from there instead
+        # the hydrus api key should be local to your computer if you're running this on a computer
+        # so its nbd to send the api key in a git repo  BUT if you're running hydrus on a server you'll need to
+        # keep the api key secret (duh).
+        if not os.path.exists('hydrus_api_key.secret'):
+            api_key = hydrus_api.utils.cli_request_api_key("ryobot", REQUIRED_PERMISSIONS)
+            # save api key to file locally
+            with open('hydrus_api_key.secret', 'w') as f:
+                f.write(api_key)
+            # create a client with the api key we just saved
+            reading_key = open('hydrus_api_key.secret', 'r')
+            # convert the api key to a string
+            local_api_key = reading_key.read()
+            client = hydrus_api.Client(local_api_key)
+        else:
+            # load api key from file
+            reading_key = open('hydrus_api_key.secret', 'r')
+            local_api_key = reading_key.read()
+            client = hydrus_api.Client(local_api_key)
 
         # Define the tags and exclude_tags
         hydrustags = config['booru']['tags'].split(',')
@@ -136,6 +153,7 @@ def compress_image(path, max_size=5):
     Returns:
         str: The path to the compressed image file.
     """
+
     # Twitter hates images < 5MB and Gifs < 15MB, so we compress the image to less than 5MB
     compressed_path = path
 
@@ -235,7 +253,8 @@ def tweet():
                 print("Deleted compressed file:", compressed_path)
                 print("Tweeted!")
                 print("Now sleeping for", converted)
-                time.sleep(int(time2post))  # int the time2post variable because it's a string and needs to be converted to
+                time.sleep(int(time2post))
+                # int the time2post variable because it's a string and needs to be converted to
                 # an int because config.ini only accepts strings
             # Keep going if an error occurs
             except Exception as e:
@@ -248,7 +267,7 @@ def tweet():
         while True:
 
             try:
-                # clear the console so we can read the output
+                # clear the console so we can read the output.
                 os.system('cls' if os.name == 'nt' else 'clear')
 
                 # path lets us get a random image without restarting the bot
@@ -274,7 +293,7 @@ def tweet():
                 os.remove(compressed_path)  # Delete the compressed image file
                 print("Deleted compressed file:", compressed_path)
                 print("Tweeted!")
-                print("Now sleeping for 1 hour...")
+                print("Now sleeping for", converted)
                 time.sleep(int(time2post))
                 # int the time2post variable because it's a string and needs to be converted to
                 # an int because config.ini only accepts strings
