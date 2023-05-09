@@ -13,12 +13,32 @@ from PIL import Image
 import hydrus_api
 import hydrus_api.utils
 import datetime
+import sys
+# config.ini should be more intuitive than editing this file directly. however, config.ini is a going to be a mess if
+# we keep adding shit so it's better to ""feature lock"" this for the moment
+# config.ini should be minimal and readable and should be easy to edit and maintain.
+# it should be in the same directory as this script and should be a .ini file that can be edited in a text editor
+# if not, errors will occur and the script will not run
+# (duh)
 
-# config.ini should be more intuitive than editing this file directly.
-config = configparser.ConfigParser()
-config.read('config.ini')
-directory = config['directory']['path']
+# check if config.ini exists and if not, call the user a dumbass and exit
+if not os.path.exists('config.ini'):
+    # lmao pycharm thinks dumbass is a typo
+    # i need to hide traceback from the user only on this error and not on the entire script itself
+    sys.tracebacklimit = 0
+    # print is unnecessary but funny to me so i'm going to keep it here
+    print('Dont delete config.ini Dumbass')
+    raise FileNotFoundError('config.ini')
+else:
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    # path to an image directory to use for importing images from Gelbooru or hydrus with the given tags excluding
+    # nudity
+    directory = config['directory']['path']
 
+# required permissions for hydrus https://gitlab.com/cryzed/hydrus-api I don't think this is the best way to do this.
+# We should move this to config.ini and use it but config.ini is going to be bloated if I do that, so I'll leave it
+# as is here for now
 REQUIRED_PERMISSIONS = (
     hydrus_api.Permission.IMPORT_URLS,
     hydrus_api.Permission.IMPORT_FILES,
@@ -31,14 +51,15 @@ REQUIRED_PERMISSIONS = (
 load_dotenv()
 
 
+# Why did i make this async? maybe it can be done synchronously? I'm not sure and im not going to do that
+# because it works fine atm, but it's probably not the best way to do this. so  just leave it future me
 async def main():
-    # hydrus is a bitch so right now we are just going to get a random post from gelbooru
     """
     Get a random post from Gelbooru or hydrus with the given tags excluding nudity.
 
     :return: URL of the post as a string.
     """
-
+    # config.ini setup
     hydrus_enabled = True if config['hydrus-api']['enabled'].lower() == 'true' else False
     if hydrus_enabled:
         # I would like to save the api key to the .env file, so we don't have to make a new file for one third-party
@@ -47,6 +68,9 @@ async def main():
         # the hydrus api key should be local to your computer if you're running this on a computer
         # so its nbd to send the api key in a git repo  BUT if you're running hydrus on a server you'll need to
         # keep the api key secret (duh).
+        # fun fact: hydrus api key is only needed for downloading images from a client the problem is that
+        # the avg user uses hydrus locally and this is halfway to useless too them however, hydrus server exists, so
+        # if a user uses a "public" server they'll need to have a hydrus api key.
         if not os.path.exists('hydrus_api_key.secret'):
             api_key = hydrus_api.utils.cli_request_api_key("ryobot", REQUIRED_PERMISSIONS)
             # save api key to file locally
@@ -72,7 +96,8 @@ async def main():
         if not files:
             # No files found with the specified tags
             return None
-
+        # randomly select a file from the list of files found with the specified tags
+        # fun fact: this took way to long to figure out
         file_id = random.choice(files['file_ids'])
         img = client.get_file(file_id=file_id)
 
@@ -125,6 +150,8 @@ async def main():
 
 
 # we don't use this no more, but it can be useful if you want to get a random image locally
+# id like to add this to config.ini but i don't think adding more else if statements is a good idea
+# this far down the line
 """ 
     def chooseRandomImage():
     
@@ -206,6 +233,7 @@ def tweet():
     """
 
     # Twitter api keys will be loaded from the .env file
+    # pycharm thinks these are typos, so ignore pycharm for now
     debug = config['debug']['enabled']
     auth = tweepy.OAuth1UserHandler(
         os.getenv("TWITTER_APIKEY"),
@@ -217,14 +245,17 @@ def tweet():
     status = config['status']['tweet']
     time2post = config['timer']['time2post']
     # let's convert the time to post to a proper date, so we can send the time to a print statement
+    # I want to use this for a countdown to the next post, but I don't know how to do that yet.
     converted = str(datetime.timedelta(seconds=int(time2post)))
     api = tweepy.API(auth)
+    # lets the user know we're logging in
     print("logging in...")
 
     # Debug mode doesn't clear the console, so we can debug...
 
     if config.getboolean('debug', 'enabled'):
         print("DEBUG MODE ENABLED CONSOLE WILL NOT BE CLEARED")
+        # 2hu
         print("Girls are now praying, please wait warmly...")
         while True:
 
@@ -236,15 +267,14 @@ def tweet():
 
                 # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
                 if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
-                    # DON'T UNCOMMENT THIS IT WAS JUST FOR TESTING
-                    # if os.path.getsize("invalid_path") > 5 * 1024 * 1024:
-                    print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                    print(
+                        f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
                     os.remove(compressed_path)  # Delete the compressed image file
                     print("Deleted compressed file:", compressed_path)
                     continue
                 # if the image is gif, set the media category
                 media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
-
+                # i don't really remember  why chunked is needed, but it works fine for now
                 media = api.media_upload(compressed_path, chunked=True, media_category=media_category)
                 status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
                 post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
@@ -279,6 +309,7 @@ def tweet():
                 if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
                     # DON'T UNCOMMENT THIS IT WAS JUST FOR TESTING
                     # if os.path.getsize("invalid_path") > 5 * 1024 * 1024:
+                    # i feel like this is a unnecessary check but just in case
                     print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
                     os.remove(compressed_path)  # Delete the compressed image file
                     print("Deleted compressed file:", compressed_path)
