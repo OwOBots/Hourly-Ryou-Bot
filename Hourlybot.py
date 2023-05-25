@@ -38,7 +38,7 @@ else:
     config = configparser.ConfigParser()
     config.read('config.ini')
     # path to an image directory to use for importing images from Gelbooru or hydrus with the given tags excluding
-    # nudity ( tbh the nudity tag is fucking useless on gelbooru so just ignore it ))
+    # nudity ( tbh the nudity tag is fucking useless on gelbooru so just ignore it)
     directory = config['directory']['path']
 
 # check for network connection and if not, panic and exit.
@@ -174,6 +174,19 @@ async def main():
 
 # locally grab a random image
 def chooseRandomImage():
+
+    """
+    Chooses a random image from the given directory.
+
+    Parameters:
+   None
+
+   Returns:
+   chosenImage : str
+       The full path to the randomly chosen image from the directory.
+    """
+
+    
     # grab a random image from the directory
     mainImage = random.choice(os.listdir(directory))
     # add the full path to the image
@@ -278,8 +291,7 @@ def tweet():
                 # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
                 if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
                     print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
-                    os.remove(compressed_path)  # Delete the compressed image file
-                    print("Deleted compressed file:", compressed_path)
+                    #dont delete the compressed file here
                     continue
                 # if the image is gif, set the media category
                 media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
@@ -287,9 +299,6 @@ def tweet():
                 media = api.media_upload(compressed_path, chunked=True, media_category=media_category)
                 status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
                 post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
-                # we delete the compressed image because it's no longer needed and storage is expensive
-                os.remove(compressed_path)  # Delete the compressed image file
-                print("Deleted compressed file:", compressed_path)
                 print("Tweeted!")
                 print("Now sleeping for", converted)
                 time.sleep(int(time2post))
