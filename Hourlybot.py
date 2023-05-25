@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+# imports for importing
 import os
 import random
 import time
@@ -14,6 +18,7 @@ import hydrus_api
 import hydrus_api.utils
 import datetime
 import sys
+
 # config.ini should be more intuitive than editing this file directly. however, config.ini is a going to be a mess if
 # we keep adding shit so it's better to ""feature lock"" this for the moment
 # config.ini should be minimal and readable and should be easy to edit and maintain.
@@ -33,8 +38,19 @@ else:
     config = configparser.ConfigParser()
     config.read('config.ini')
     # path to an image directory to use for importing images from Gelbooru or hydrus with the given tags excluding
-    # nudity
+    # nudity ( tbh the nudity tag is fucking useless on gelbooru so just ignore it ))
     directory = config['directory']['path']
+
+# check for network connection and if not, panic and exit.
+timeout = 1
+
+try:
+    requests.head("http://www.google.com/", timeout=timeout)
+    # Do something
+    print('The internet connection is active')
+except requests.ConnectionError:
+    print('The internet connection is not active')
+    sys.exit()
 
 # required permissions for hydrus https://gitlab.com/cryzed/hydrus-api I don't think this is the best way to do this.
 # We should move this to config.ini and use it but config.ini is going to be bloated if I do that, so I'll leave it
@@ -51,8 +67,6 @@ REQUIRED_PERMISSIONS = (
 load_dotenv()
 
 
-# Why did i make this async? maybe it can be done synchronously? I'm not sure and im not going to do that
-# because it works fine atm, but it's probably not the best way to do this. so  just leave it future me
 async def main():
     """
     Get a random post from Gelbooru or hydrus with the given tags excluding nudity.
@@ -62,32 +76,40 @@ async def main():
     # config.ini setup
     hydrus_enabled = True if config['hydrus-api']['enabled'].lower() == 'true' else False
     if hydrus_enabled:
-        # I would like to save the api key to the .env file, so we don't have to make a new file for one third-party
-        # api but im afraid of overwriting .env file with just the hydrus api key and removing the twitter keys,
-        # so I'm going to save the api key to a file and load it from there instead
+        # if hydrus is enabled, we need to get the api key from the .env file
         # the hydrus api key should be local to your computer if you're running this on a computer
         # so its nbd to send the api key in a git repo  BUT if you're running hydrus on a server you'll need to
         # keep the api key secret (duh).
         # fun fact: hydrus api key is only needed for downloading images from a client the problem is that
         # the avg user uses hydrus locally and this is halfway to useless too them however, hydrus server exists, so
         # if a user uses a "public" server they'll need to have a hydrus api key.
-        if not os.path.exists('hydrus_api_key.secret'):
+        # get the api key from hydrus api
+
+        # load the api key
+        load_dotenv()
+
+        if not os.getenv('HYDRUS_APIKEY'):
             api_key = hydrus_api.utils.cli_request_api_key("ryobot", REQUIRED_PERMISSIONS)
-            # save api key to file locally
-            with open('hydrus_api_key.secret', 'w') as f:
-                f.write(api_key)
+            # add hydrus api key to .env
+            # hope this works
+            with open('.env', 'a') as f:
+                f.write('HYDRUS_APIKEY=' + api_key + '\n')
             # create a client with the api key we just saved
-            reading_key = open('hydrus_api_key.secret', 'r')
+            reading_key = "HYDRUS_APIKEY"
             # convert the api key to a string
-            local_api_key = reading_key.read()
+            load_dotenv()
+            local_api_key = os.getenv('HYDRUS_APIKEY')
             client = hydrus_api.Client(local_api_key)
         else:
-            # load api key from file
-            reading_key = open('hydrus_api_key.secret', 'r')
-            local_api_key = reading_key.read()
+            # load the api key from the .env file and create a client with it
+
+            load_dotenv()
+            local_api_key = os.getenv('HYDRUS_APIKEY')
             client = hydrus_api.Client(local_api_key)
 
         # Define the tags and exclude_tags
+        # this reuses the tags from standard [booru] section of config.ini so i dont have to
+        # make a new section for this
         hydrustags = config['booru']['tags'].split(',')
 
         # Search for files with the specified tags
@@ -95,6 +117,7 @@ async def main():
         files = client.search_files(tags=hydrustags, return_file_ids=True)
         if not files:
             # No files found with the specified tags
+            # this should never happen
             return None
         # randomly select a file from the list of files found with the specified tags
         # fun fact: this took way to long to figure out
@@ -149,24 +172,15 @@ async def main():
         return path
 
 
-# we don't use this no more, but it can be useful if you want to get a random image locally
-# id like to add this to config.ini but i don't think adding more else if statements is a good idea
-# this far down the line
-""" 
-    def chooseRandomImage():
-    
-    # should be in config.ini but twitter doesn't like other extensions other than this so suck it
-    imgExtension = ["png", "jpeg", "jpg", "gif"]
-
-    allImages = []
-    for img in os.listdir(directory):
-        ext = img.split(".")[len(img.split(".")) - 1]
-        if (ext in imgExtension):
-            allImages.append(img)
-    choice = random.randint(0, len(allImages) - 1)
-    chosenImage = allImages[choice]
-    return chosenImage 
-"""
+# locally grab a random image
+def chooseRandomImage():
+    # grab a random image from the directory
+    mainImage = random.choice(os.listdir(directory))
+    # add the full path to the image
+    # this fixes the issue of the program not being able to find the image despite having it in the directory
+    chosenImage = os.path.join(directory, mainImage)
+    # return the image
+    return chosenImage
 
 
 def compress_image(path, max_size=5):
@@ -182,6 +196,7 @@ def compress_image(path, max_size=5):
     """
 
     # Twitter hates images < 5MB and Gifs < 15MB, so we compress the image to less than 5MB
+    #
     compressed_path = path
 
     # If the file size is already less than the specified maximum, return the original file path
@@ -258,17 +273,11 @@ def tweet():
         # 2hu
         print("Girls are now praying, please wait warmly...")
         while True:
-
-            try:
-                # path lets us get a random image without restarting the bot
-                path = asyncio.run(main())  # Get a random image from Gelbooru
-                compressed_path = compress_image(path)  # Compress the image
-                print("Compressed file path:", compressed_path)
-
+            if config.getboolean('local', 'enabled'):
+                compressed_path = compress_image(chooseRandomImage())
                 # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
                 if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
-                    print(
-                        f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                    print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
                     os.remove(compressed_path)  # Delete the compressed image file
                     print("Deleted compressed file:", compressed_path)
                     continue
@@ -284,14 +293,39 @@ def tweet():
                 print("Tweeted!")
                 print("Now sleeping for", converted)
                 time.sleep(int(time2post))
-                # int the time2post variable because it's a string and needs to be converted to
-                # an int because config.ini only accepts strings
-            # Keep going if an error occurs
-            except Exception as e:
-                print("Error occurred:", e)
-                print("Retrying in 30 seconds...")
-                time.sleep(30)
-                continue
+            else:
+                try:
+                    # path lets us get a random image without restarting the bot
+                    path = asyncio.run(main())  # Get a random image from Gelbooru
+                    compressed_path = compress_image(path)  # Compress the image
+                    print("Compressed file path:", compressed_path)
+
+                    # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
+                    if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
+                        print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                        os.remove(compressed_path)  # Delete the compressed image file
+                        print("Deleted compressed file:", compressed_path)
+                        continue
+                    # if the image is gif, set the media category
+                    media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
+                    # i don't really remember  why chunked is needed, but it works fine for now
+                    media = api.media_upload(compressed_path, chunked=True, media_category=media_category)
+                    status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
+                    post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
+                    # we delete the compressed image because it's no longer needed and storage is expensive
+                    os.remove(compressed_path)  # Delete the compressed image file
+                    print("Deleted compressed file:", compressed_path)
+                    print("Tweeted!")
+                    print("Now sleeping for", converted)
+                    time.sleep(int(time2post))
+                    # int the time2post variable because it's a string and needs to be converted to
+                    # an int because config.ini only accepts strings
+                # Keep going if an error occurs
+                except Exception as e:
+                    print("Error occurred:", e)
+                    print("Retrying in 30 seconds...")
+                    time.sleep(30)
+                    continue
     else:
         print("Girls are now praying, please wait warmly...")
         while True:

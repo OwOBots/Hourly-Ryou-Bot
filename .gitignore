@@ -33,3 +33,5 @@ venv.bak/
 arts
 *.png
 hydrus_api_key.secret
+.env.backup
+/hydrus_api_key.secret.bak
