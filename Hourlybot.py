@@ -18,6 +18,7 @@ import hydrus_api
 import hydrus_api.utils
 import datetime
 import sys
+import tweepyAuthfixed
 
 # config.ini should be more intuitive than editing this file directly. however, config.ini is a going to be a mess if
 # we keep adding shit so it's better to ""feature lock"" this for the moment
@@ -174,7 +175,6 @@ async def main():
 
 # locally grab a random image
 def chooseRandomImage():
-
     """
     Chooses a random image from the given directory.
 
@@ -186,7 +186,6 @@ def chooseRandomImage():
        The full path to the randomly chosen image from the directory.
     """
 
-    
     # grab a random image from the directory
     mainImage = random.choice(os.listdir(directory))
     # add the full path to the image
@@ -263,19 +262,23 @@ def tweet():
     # Twitter api keys will be loaded from the .env file
     # pycharm thinks these are typos, so ignore pycharm for now
     debug = config['debug']['enabled']
-    auth = tweepy.OAuth1UserHandler(
-        os.getenv("TWITTER_APIKEY"),
-        os.getenv("TWITTER_APISECRET"),
-        os.getenv("ACCESS_TOKEN"),
-        os.getenv("ACCESS_TOKENSECRET"),
-        os.getenv("BEAR")
-    )
     status = config['status']['tweet']
     time2post = config['timer']['time2post']
     # let's convert the time to post to a proper date, so we can send the time to a print statement
     # I want to use this for a countdown to the next post, but I don't know how to do that yet.
     converted = str(datetime.timedelta(seconds=int(time2post)))
-    api = tweepy.API(auth)
+    # no more .env file for twitter keys now
+    # pros:
+    # .env is smaller and easier to work with
+    # the user doesn't have to copy and paste 4 times
+    # if the user came from tootbotx, they should be at home
+    #
+    # cons:
+    # new files will be created on first run
+    # 2 scripts sucks but tweepyAuth hasn't been updated in a while I had to steal it so pins work
+    # id like to keep the amount of files to a minimum
+    # however, this is easier for the end user to work with
+    api = tweepyAuthfixed.auto_authenticate(tokenfile='secrets/twitter_token.txt', keyfile='secrets/twitter_key.txt')
     # lets the user know we're logging in
     print("logging in...")
 
@@ -290,8 +293,9 @@ def tweet():
                 compressed_path = compress_image(chooseRandomImage())
                 # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
                 if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
-                    print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
-                    #dont delete the compressed file here
+                    print(
+                        f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                    # dont delete the compressed file here
                     continue
                 # if the image is gif, set the media category
                 media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
@@ -311,7 +315,8 @@ def tweet():
 
                     # If the compressed file is larger than 5MB, skip the tweet and continue to the next iteration
                     if os.path.getsize(compressed_path) > 5 * 1024 * 1024:
-                        print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                        print(
+                            f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
                         os.remove(compressed_path)  # Delete the compressed image file
                         print("Deleted compressed file:", compressed_path)
                         continue
@@ -353,7 +358,8 @@ def tweet():
                     # DON'T UNCOMMENT THIS IT WAS JUST FOR TESTING
                     # if os.path.getsize("invalid_path") > 5 * 1024 * 1024:
                     # i feel like this is a unnecessary check but just in case
-                    print(f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
+                    print(
+                        f"Skipping tweet because compressed file size is {os.path.getsize(compressed_path) / (1024 * 1024):.2f} MB")
                     os.remove(compressed_path)  # Delete the compressed image file
                     print("Deleted compressed file:", compressed_path)
                     continue
