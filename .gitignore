@@ -35,4 +35,4 @@ arts
 hydrus_api_key.secret
 .env.backup
 /hydrus_api_key.secret.bak
-
+secrets
