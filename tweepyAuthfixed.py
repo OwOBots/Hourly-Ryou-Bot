@@ -11,12 +11,12 @@ def auto_authenticate(tokenfile='twitter_tokens.txt', keyfile='twitter_keys.txt'
         if not silent: print('loading twitter_keys.txt')
         with open(keyfile, 'r') as f:
             keys = list(f.read().split(','))
-            auth = tweepy.OAuthHandler(keys[0], keys[1], callback="oob")
+            auth = tweepy.OAuth1UserHandler(keys[0], keys[1], callback="oob")
     else:
         print(keyfile + ' doesnt exist')
         keys = [input('consumer API key:'), input('consumer API secret key:')]
         try:
-            auth = tweepy.OAuthHandler(keys[0], keys[1], callback="oob")
+            auth = tweepy.OAuth1UserHandler(keys[0], keys[1], callback="oob")
         except BaseException as e:
             print('keys invalid:', e)
             return None
@@ -46,7 +46,7 @@ def auto_authenticate(tokenfile='twitter_tokens.txt', keyfile='twitter_keys.txt'
 
 
 def authenticate(consumer_token, consumer_secret):
-    auth = tweepy.OAuthHandler(consumer_token, consumer_secret, callback="oob")
+    auth = tweepy.OAuth1UserHandler(consumer_token, consumer_secret, callback="oob")
     try:
         redirect_url = auth.get_authorization_url()
         print(redirect_url)
