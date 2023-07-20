@@ -19,7 +19,7 @@ import hydrus_api.utils
 import datetime
 import sys
 import tweepyAuthfixed
-
+load_dotenv()
 # config.ini should be more intuitive than editing this file directly. however, config.ini is a going to be a mess if
 # we keep adding shit so it's better to ""feature lock"" this for the moment
 # config.ini should be minimal and readable and should be easy to edit and maintain.
@@ -173,6 +173,31 @@ async def main():
         return path
 
 
+def get_twitter_conn_v1(api_key, api_secret, access_token, access_token_secret) -> tweepy.API:
+    """Get twitter conn 1.1"""
+
+    auth = tweepy.OAuth1UserHandler(api_key, api_secret)
+    auth.set_access_token(
+        access_token,
+        access_token_secret,
+    )
+    return tweepy.API(auth)
+
+def get_twitter_conn_v2(api_key, api_secret, access_token, access_token_secret) -> tweepy.Client:
+    """Get twitter conn 2.0"""
+
+    client = tweepy.Client(
+        consumer_key=api_key,
+        consumer_secret=api_secret,
+        access_token=access_token,
+        access_token_secret=access_token_secret,
+    )
+
+    return client
+
+
+
+
 # locally grab a random image
 def chooseRandomImage():
     """
@@ -267,18 +292,13 @@ def tweet():
     # let's convert the time to post to a proper date, so we can send the time to a print statement
     # I want to use this for a countdown to the next post, but I don't know how to do that yet.
     converted = str(datetime.timedelta(seconds=int(time2post)))
-    # no more .env file for twitter keys now
-    # pros:
-    # .env is smaller and easier to work with
-    # the user doesn't have to copy and paste 4 times
-    # if the user came from tootbotx, they should be at home
-    #
-    # cons:
-    # new files will be created on first run
-    # 2 scripts sucks but tweepyAuth hasn't been updated in a while I had to steal it so pins work
-    # id like to keep the amount of files to a minimum
-    # however, this is easier for the end user to work with
-    api = tweepyAuthfixed.auto_authenticate(tokenfile='secrets/twitter_token.txt', keyfile='secrets/twitter_key.txt')
+
+
+    # .env file for twitter keys
+    client_v1 = get_twitter_conn_v1(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"), os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
+    client_v2 = get_twitter_conn_v2(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"), os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
+    #oldapi = tweepy.Client(os.getenv('BEAR'),os.getenv('TWITTER_APIKEY'), os.getenv('TWITTER_APISECRET'), os.getenv('ACCESS_TOKEN'), os.getenv('ACCESS_TOKENSECRET'),)
+    #api = tweepyAuthfixed.auto_authenticate(tokenfile='secrets/twitter_token.txt', keyfile='secrets/twitter_key.txt')
     # lets the user know we're logging in
     print("logging in...")
 
@@ -300,9 +320,10 @@ def tweet():
                 # if the image is gif, set the media category
                 media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
                 # i don't really remember  why chunked is needed, but it works fine for now
-                media = api.media_upload(compressed_path, chunked=True, media_category=media_category)
+                media = client_v1.media_upload(compressed_path, chunked=True, media_category=media_category)
+                media_id = media.media_id
                 status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
-                post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
+                post_result = client_v2.create_tweet(text=status_text, media_ids=[media_id])
                 print("Tweeted!")
                 print("Now sleeping for", converted)
                 time.sleep(int(time2post))
@@ -323,9 +344,10 @@ def tweet():
                     # if the image is gif, set the media category
                     media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
                     # i don't really remember  why chunked is needed, but it works fine for now
-                    media = api.media_upload(compressed_path, chunked=True, media_category=media_category)
+                    media = client_v1.media_upload(compressed_path, chunked=True, media_category=media_category)
+                    media_id = media.media_id
                     status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
-                    post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
+                    post_result = client_v2.create_tweet(text=status_text, media_ids=[media_id])
                     # we delete the compressed image because it's no longer needed and storage is expensive
                     os.remove(compressed_path)  # Delete the compressed image file
                     print("Deleted compressed file:", compressed_path)
@@ -366,9 +388,10 @@ def tweet():
                 # if the image is gif, set the media category
                 media_category = "tweet_gif" if compressed_path.endswith(".gif") else None
 
-                media = api.media_upload(compressed_path, chunked=True, media_category=media_category)
+                media = client_v1.media_upload(compressed_path, chunked=True, media_category=media_category)
+                media_id = media.media_id
                 status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
-                post_result = api.update_status(status=status_text, media_ids=[media.media_id_string])
+                post_result = client_v2.update_status(status=status_text, media_ids=[media_id])
                 # we delete the compressed image because it's no longer needed and storage is expensive
                 os.remove(compressed_path)  # Delete the compressed image file
                 print("Deleted compressed file:", compressed_path)
