@@ -392,7 +392,7 @@ def tweet():
                 media_id = media.media_id
                 status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
                 post_result = client_v2.create_tweet(text=status_text, media_ids=[media_id])
-                # we delete the compressed image because it's no longer needed and storage is expensive
+                # we delete the compressed image because it's no longer needed and storage is expensive (too expensive)
                 os.remove(compressed_path)  # Delete the compressed image file
                 print("Deleted compressed file:", compressed_path)
                 print("Tweeted!")
