@@ -1,31 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import asyncio
+import configparser
+import datetime
 # imports for importing
 import os
 import random
+import sys
 import time
-from dotenv import load_dotenv
-import tweepy
-import asyncio
-import aiohttp
 import aiofiles
-from pygelbooru import Gelbooru
-import requests
-import configparser
-from PIL import Image
+import aiohttp
+import atproto
 import hydrus_api
 import hydrus_api.utils
-import datetime
-import sys
-import tweepyAuthfixed
+import requests
+import tweepy
+from PIL import Image
+from dotenv import load_dotenv
+from pygelbooru import Gelbooru
+from atproto import Client
+
 load_dotenv()
-# config.ini should be more intuitive than editing this file directly. however, config.ini is a going to be a mess if
-# we keep adding shit so it's better to ""feature lock"" this for the moment
-# config.ini should be minimal and readable and should be easy to edit and maintain.
-# it should be in the same directory as this script and should be a .ini file that can be edited in a text editor
-# if not, errors will occur and the script will not run
-# (duh)
 
 # check if config.ini exists and if not, call the user a dumbass and exit
 if not os.path.exists('config.ini'):
@@ -163,6 +159,7 @@ async def main():
         genbooru = Gelbooru(os.getenv("BOORUAPI"), os.getenv("BOORUUID"), api=booru_url)
         async with aiohttp.ClientSession() as session:
             results = await genbooru.random_post(tags=tags, exclude_tags=exclude_tags)
+
             ryo = str(results)
             async with session.get(ryo) as response:
                 filename = os.path.basename(ryo)
@@ -183,6 +180,7 @@ def get_twitter_conn_v1(api_key, api_secret, access_token, access_token_secret) 
     )
     return tweepy.API(auth)
 
+
 def get_twitter_conn_v2(api_key, api_secret, access_token, access_token_secret) -> tweepy.Client:
     """Get twitter conn 2.0"""
 
@@ -196,6 +194,11 @@ def get_twitter_conn_v2(api_key, api_secret, access_token, access_token_secret) 
     return client
 
 
+def bluecon(handel, appkey) -> atproto.Client:
+    client = Client()
+    client.login(handel, appkey)
+
+    return client
 
 
 # locally grab a random image
@@ -293,12 +296,13 @@ def tweet():
     # I want to use this for a countdown to the next post, but I don't know how to do that yet.
     converted = str(datetime.timedelta(seconds=int(time2post)))
 
-
     # .env file for twitter keys
-    client_v1 = get_twitter_conn_v1(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"), os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
-    client_v2 = get_twitter_conn_v2(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"), os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
-    #oldapi = tweepy.Client(os.getenv('BEAR'),os.getenv('TWITTER_APIKEY'), os.getenv('TWITTER_APISECRET'), os.getenv('ACCESS_TOKEN'), os.getenv('ACCESS_TOKENSECRET'),)
-    #api = tweepyAuthfixed.auto_authenticate(tokenfile='secrets/twitter_token.txt', keyfile='secrets/twitter_key.txt')
+    client_v1 = get_twitter_conn_v1(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"),
+                                    os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
+    client_v2 = get_twitter_conn_v2(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"),
+                                    os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
+    # oldapi = tweepy.Client(os.getenv('BEAR'),os.getenv('TWITTER_APIKEY'), os.getenv('TWITTER_APISECRET'), os.getenv('ACCESS_TOKEN'), os.getenv('ACCESS_TOKENSECRET'),)
+    # api = tweepyAuthfixed.auto_authenticate(tokenfile='secrets/twitter_token.txt', keyfile='secrets/twitter_key.txt')
     # lets the user know we're logging in
     print("logging in...")
 
@@ -306,7 +310,6 @@ def tweet():
 
     if config.getboolean('debug', 'enabled'):
         print("DEBUG MODE ENABLED CONSOLE WILL NOT BE CLEARED")
-        # 2hu
         print("Girls are now praying, please wait warmly...")
         while True:
             if config.getboolean('local', 'enabled'):
@@ -327,6 +330,7 @@ def tweet():
                 print("Tweeted!")
                 print("Now sleeping for", converted)
                 time.sleep(int(time2post))
+
             else:
                 try:
                     # path lets us get a random image without restarting the bot
@@ -347,6 +351,7 @@ def tweet():
                     media = client_v1.media_upload(compressed_path, chunked=True, media_category=media_category)
                     media_id = media.media_id
                     status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
+                    # status_text = source()
                     post_result = client_v2.create_tweet(text=status_text, media_ids=[media_id])
                     # we delete the compressed image because it's no longer needed and storage is expensive
                     os.remove(compressed_path)  # Delete the compressed image file
@@ -400,6 +405,7 @@ def tweet():
                 time.sleep(int(time2post))
                 # int the time2post variable because it's a string and needs to be converted to
                 # an int because config.ini only accepts strings
+
             # Keep going if an error occurs
             except Exception as e:
                 print("Error occurred:", e)
@@ -408,5 +414,13 @@ def tweet():
                 continue
 
 
+def bluesky():
+    client = bluecon(os.getenv("BLUESKY_USERNAME"), os.getenv("BLUESKY_PASSWORD"))
+    client.send_post(text='test')
+
+
 if __name__ == "__main__":
-    tweet()
+    if config['bluesky']['enabled']:
+        bluesky()
+    else:
+        tweet()
