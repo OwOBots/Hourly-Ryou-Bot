@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import asyncio
+import configparser
+import datetime
 # imports for importing
 import os
 import random
+import sys
 import time
-from dotenv import load_dotenv
-import tweepy
-import asyncio
-import aiohttp
+
 import aiofiles
-from pygelbooru import Gelbooru
-import requests
-import configparser
-from PIL import Image
+import aiohttp
 import hydrus_api
 import hydrus_api.utils
-import datetime
-import sys
-import tweepyAuthfixed
+import requests
+import tweepy
+from PIL import Image
+from dotenv import load_dotenv
+from pygelbooru import Gelbooru
+from saucenaopie import AsyncSauceNao
+
 load_dotenv()
 # config.ini should be more intuitive than editing this file directly. however, config.ini is a going to be a mess if
 # we keep adding shit so it's better to ""feature lock"" this for the moment
@@ -66,6 +68,16 @@ REQUIRED_PERMISSIONS = (
 
 # load the .env file, so we can use the api keys
 load_dotenv()
+
+
+async def source(imgpath) -> str:
+    client = AsyncSauceNao(api_key=os.getenv('SAUCE_KEY'))
+    sauce = await client.search(
+        file=imgpath
+    )
+    for result in sauce.get_likely_results():
+        return str(result.data.first_url)
+    #convert to string
 
 
 async def main():
@@ -160,6 +172,7 @@ async def main():
         # generic booru api key because there's more than one booru out there
         # if the user has a custom api key then use that
         # most boorus don't use api keys so leaving it blank is fine
+
         genbooru = Gelbooru(os.getenv("BOORUAPI"), os.getenv("BOORUUID"), api=booru_url)
         async with aiohttp.ClientSession() as session:
             results = await genbooru.random_post(tags=tags, exclude_tags=exclude_tags)
@@ -183,6 +196,7 @@ def get_twitter_conn_v1(api_key, api_secret, access_token, access_token_secret) 
     )
     return tweepy.API(auth)
 
+
 def get_twitter_conn_v2(api_key, api_secret, access_token, access_token_secret) -> tweepy.Client:
     """Get twitter conn 2.0"""
 
@@ -194,8 +208,6 @@ def get_twitter_conn_v2(api_key, api_secret, access_token, access_token_secret) 
     )
 
     return client
-
-
 
 
 # locally grab a random image
@@ -286,17 +298,18 @@ def tweet():
 
     # Twitter api keys will be loaded from the .env file
     # pycharm thinks these are typos, so ignore pycharm for now
+
     debug = config['debug']['enabled']
-    status = config['status']['tweet']
     time2post = config['timer']['time2post']
     # let's convert the time to post to a proper date, so we can send the time to a print statement
     # I want to use this for a countdown to the next post, but I don't know how to do that yet.
     converted = str(datetime.timedelta(seconds=int(time2post)))
 
-
     # .env file for twitter keys
-    client_v1 = get_twitter_conn_v1(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"), os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
-    client_v2 = get_twitter_conn_v2(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"), os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
+    client_v1 = get_twitter_conn_v1(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"),
+                                    os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
+    client_v2 = get_twitter_conn_v2(os.getenv("TWITTER_APIKEY"), os.getenv("TWITTER_APISECRET"),
+                                    os.getenv("ACCESS_TOKEN"), os.getenv("ACCESS_TOKENSECRET"))
     #oldapi = tweepy.Client(os.getenv('BEAR'),os.getenv('TWITTER_APIKEY'), os.getenv('TWITTER_APISECRET'), os.getenv('ACCESS_TOKEN'), os.getenv('ACCESS_TOKENSECRET'),)
     #api = tweepyAuthfixed.auto_authenticate(tokenfile='secrets/twitter_token.txt', keyfile='secrets/twitter_key.txt')
     # lets the user know we're logging in
@@ -322,8 +335,9 @@ def tweet():
                 # i don't really remember  why chunked is needed, but it works fine for now
                 media = client_v1.media_upload(compressed_path, chunked=True, media_category=media_category)
                 media_id = media.media_id
-                status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
-                post_result = client_v2.create_tweet(text=status_text, media_ids=[media_id])
+                status_text = asyncio.run(source(compressed_path))
+                text = status_text
+                post_result = client_v2.create_tweet(text=text, media_ids=[media_id])
                 print("Tweeted!")
                 print("Now sleeping for", converted)
                 time.sleep(int(time2post))
@@ -346,8 +360,9 @@ def tweet():
                     # i don't really remember  why chunked is needed, but it works fine for now
                     media = client_v1.media_upload(compressed_path, chunked=True, media_category=media_category)
                     media_id = media.media_id
-                    status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
-                    post_result = client_v2.create_tweet(text=status_text, media_ids=[media_id])
+                    status_text = asyncio.run(source(compressed_path))
+                    text = status_text
+                    post_result = client_v2.create_tweet(text=text, media_ids=[media_id])
                     # we delete the compressed image because it's no longer needed and storage is expensive
                     os.remove(compressed_path)  # Delete the compressed image file
                     print("Deleted compressed file:", compressed_path)
@@ -358,10 +373,9 @@ def tweet():
                     # an int because config.ini only accepts strings
                 # Keep going if an error occurs
                 except Exception as e:
-                    print("Error occurred:", e)
-                    print("Retrying in 30 seconds...")
-                    time.sleep(30)
-                    continue
+                    print("Error:", e)
+                    print("Retrying in 10 seconds...")
+                    time.sleep(10)
     else:
         print("Girls are now praying, please wait warmly...")
         while True:
@@ -390,8 +404,12 @@ def tweet():
 
                 media = client_v1.media_upload(compressed_path, chunked=True, media_category=media_category)
                 media_id = media.media_id
-                status_text = None if status.strip() == '' else status  # Set status_text to None if status is blank
-                post_result = client_v2.create_tweet(text=status_text, media_ids=[media_id])
+                status_text = asyncio.run(source(compressed_path))
+                text = status_text
+                post_result = client_v2.create_tweet(text=text, media_ids=[media_id])
+                print("Tweeted!")
+                print("Now sleeping for", converted)
+                time.sleep(int(time2post))
                 # we delete the compressed image because it's no longer needed and storage is expensive (too expensive)
                 os.remove(compressed_path)  # Delete the compressed image file
                 print("Deleted compressed file:", compressed_path)
