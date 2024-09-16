@@ -17,7 +17,7 @@ requests==2.32.3
 six==1.16.0
 tweepy==4.13.0
 typing_extensions==4.6.3
-urllib3==2.1.0
+urllib3==2.2.3
 yarg==0.1.9
 hydrus-api>=5.0.1
 pip>=23.2.1
