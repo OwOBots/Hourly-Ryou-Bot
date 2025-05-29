@@ -1,0 +1,18 @@
+[project]
+name = "hourly-ryou-bot"
+version = "0.1.0"
+description = "Hourly Twitter Bot"
+requires-python = ">=3.12"
+dependencies = [
+    "aiofiles>=24.1.0",
+    "hydrus-api>=5.1.1",
+    "pillow>=11.2.1",
+    "pygelbooru",
+    "python-dotenv==1.1.0",
+    "requests>=2.32.3",
+    "saucenaopie==1.3.3",
+    "tweepy>=4.15.0",
+]
+
+[tool.uv.sources]
+pygelbooru = { git = "https://github.com/PyAres/pygelbooru.git" }

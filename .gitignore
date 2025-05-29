@@ -30,7 +30,6 @@ venv.bak/
 
 
 #nuh uh
-arts
 *.png
 hydrus_api_key.secret
 .env.backup
